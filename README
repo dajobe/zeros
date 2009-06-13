@@ -1,0 +1,9 @@
+Sometimes you just need to make a lot of zeros
+
+BUILD:
+
+  $ make
+
+RUN:
+
+  $ ./zero filename
