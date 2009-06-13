@@ -33,6 +33,11 @@ int main(int argc, char *argv[])
   size_t buffer_size = (size_t)(size * nitems);
   double rate=0.0;
   
+  if(argc != 2) {
+    fprintf(stderr, "USAGE %s: FILENAME\n", argv[0]);
+    exit(1);
+  }
+
   filename=argv[1];
   
   buffer = (char*)calloc(nitems, size);
