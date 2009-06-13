@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
   
   buffer = (char*)calloc(nitems, size);
   if(!buffer) {
-    fprintf(stderr, "Failed to calloc %lu bytes\n", (size * nitems));
+    fprintf(stderr, "Failed to calloc %lu bytes\n", (long unsigned int)(size * nitems));
     exit(1);
   }
 
