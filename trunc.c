@@ -25,6 +25,11 @@ int main(int argc, char *argv[])
 #endif
   off_t buffer_size = (off_t)(size * nitems);
   
+  if(argc != 2) {
+    fprintf(stderr, "USAGE %s: FILENAME\n", argv[0]);
+    exit(1);
+  }
+
   filename=argv[1];
   
 #if USE_STDIO
