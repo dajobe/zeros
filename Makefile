@@ -1,5 +1,5 @@
 FILES= trunc zero
-CPPFLAGS= -Wall
+CPPFLAGS= -Wall -DUSE_MMAP
 
 all: $(FILES)
 
