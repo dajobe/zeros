@@ -33,6 +33,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef USE_MMAP
+#include <sys/mman.h>
+#else
+#endif
 
 /* static unsigned int K = 1024; */
 static unsigned int M = 1024*1024;
@@ -43,21 +47,23 @@ static size_t size = 1073741824;
 static size_t nitems = 1;
 
 
-#define USE_STDIO 0
-
 int main(int argc, char *argv[]);
 
 
 int main(int argc, char *argv[]) 
 {
   char *filename;
-#if USE_STDIO
+#ifdef USE_STDIO
   FILE *handle;
 #else
   int fd;
 #endif
+  size_t block_size = (size_t)(size * nitems);
+#ifdef USE_MMAP
+  void *buffer = NULL;
+#else
   char *buffer = NULL;
-  size_t buffer_size = (size_t)(size * nitems);
+#endif
   double rate=0.0;
   
   if(argc != 2) {
@@ -66,14 +72,28 @@ int main(int argc, char *argv[])
   }
 
   filename=argv[1];
-  
-  buffer = (char*)calloc(nitems, size);
-  if(!buffer) {
-    fprintf(stderr, "Failed to calloc %lu bytes\n", (long unsigned int)(size * nitems));
+
+#ifdef USE_MMAP
+  buffer = mmap(NULL /* addr */, block_size,
+                PROT_READ, MAP_ANON | MAP_PRIVATE,
+                -1 /* fd */, 0 /* offset */);
+  if(buffer == MAP_FAILED) {
+    fprintf(stderr, "Failed to mmap %lu bytes - %s\n",
+            (long unsigned int)(size * nitems), strerror(errno));
     exit(1);
   }
-
-#if USE_STDIO
+  fprintf(stderr, "mmap()ed %lu bytes at %p\n",
+          (long unsigned int)(size * nitems), buffer);
+#else
+  buffer = (char*)calloc(nitems, size);
+  if(!buffer) {
+    fprintf(stderr, "Failed to allocate %lu bytes\n",
+            (long unsigned int)(size * nitems));
+    exit(1);
+  }
+#endif
+  
+#ifdef USE_STDIO
   handle = fopen(filename, "wb");
   if(!handle) {
     fprintf(stderr, "Failed to open output file %s - %s\n", filename,
@@ -96,17 +116,17 @@ int main(int argc, char *argv[])
     time_t end;
     size_t expected;
     
-    fprintf(stderr, "writing %d bytes to %s\n", (int)buffer_size, filename);
+    fprintf(stderr, "writing %d bytes to %s\n", (int)block_size, filename);
 
     gettimeofday(&tv, NULL);
     start = tv.tv_sec;
 
-#if USE_STDIO
+#ifdef USE_STDIO
     expected = nitems;
     written = fwrite(buffer, size , nitems, handle);
 #else
-    expected = buffer_size;
-    written = write(fd, buffer, buffer_size);
+    expected = block_size;
+    written = write(fd, buffer, block_size);
 #endif
 
     gettimeofday(&tv, NULL);
@@ -117,16 +137,21 @@ int main(int argc, char *argv[])
               (int)written, (int)expected);
       break;
     }
-    rate = buffer_size / (end-start);
+    rate = block_size / (end-start);
     fprintf(stderr, "  wrote at %2.2f Mbytes/sec (%2.2f Gbytes/sec)\n",
             rate / M, rate / G);
   }
 
-#if USE_STDIO
+#ifdef USE_STDIO
   fclose(handle);
 #else
   close(fd);
 #endif
 
+#ifdef USE_MMAP
+  if(buffer)
+     munmap(buffer, block_size);
+#endif
+  
   return 0;
 }
