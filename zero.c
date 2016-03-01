@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #ifdef USE_MMAP
 #include <sys/mman.h>
@@ -64,31 +65,35 @@ int main(int argc, char *argv[])
 #else
   char *buffer = NULL;
 #endif
-  double rate=0.0;
+  double rate = 0.0;
+  int gigabytes = -1;
+  int gigabytes_count = -1;
   
-  if(argc != 2) {
-    fprintf(stderr, "USAGE %s: FILENAME\n", argv[0]);
+  if(argc < 2 || argc > 3) {
+    fprintf(stderr, "USAGE %s: FILENAME [gigabytes count]\n", argv[0]);
     exit(1);
   }
 
   filename=argv[1];
+  if(argc == 3)
+    gigabytes = atoi(argv[2]);
 
 #ifdef USE_MMAP
   buffer = mmap(NULL /* addr */, block_size,
                 PROT_READ, MAP_ANON | MAP_PRIVATE,
                 -1 /* fd */, 0 /* offset */);
   if(buffer == MAP_FAILED) {
-    fprintf(stderr, "Failed to mmap %lu bytes - %s\n",
-            (long unsigned int)(size * nitems), strerror(errno));
+    fprintf(stderr, "Failed to mmap %" PRIuPTR " bytes - %s\n",
+            block_size, strerror(errno));
     exit(1);
   }
-  fprintf(stderr, "mmap()ed %lu bytes at %p\n",
-          (long unsigned int)(size * nitems), buffer);
+  fprintf(stderr, "mmap()ed %" PRIuPTR " bytes at %p\n",
+          block_size, buffer);
 #else
   buffer = (char*)calloc(nitems, size);
   if(!buffer) {
-    fprintf(stderr, "Failed to allocate %lu bytes\n",
-            (long unsigned int)(size * nitems));
+    fprintf(stderr, "Failed to allocate %" PRIuPTR " bytes\n",
+            block_size);
     exit(1);
   }
 #endif
@@ -109,6 +114,9 @@ int main(int argc, char *argv[])
   }
 #endif
 
+  if(gigabytes > 0)
+    gigabytes_count = gigabytes;
+
   while(1) {
     size_t written;
     struct timeval tv;
@@ -117,8 +125,10 @@ int main(int argc, char *argv[])
     time_t end;
     suseconds_t end_usec;
     size_t expected;
-    
-    fprintf(stderr, "writing %d bytes to %s\n", (int)block_size, filename);
+    double secs;
+
+    fprintf(stderr, "writing %" PRIuPTR " bytes to %s\n",
+            block_size, filename);
 
     gettimeofday(&tv, NULL);
     start = tv.tv_sec;
@@ -141,9 +151,15 @@ int main(int argc, char *argv[])
               (int)written, (int)expected);
       break;
     }
-    rate = block_size / ((end-start) + (end_usec-start_usec)/1.0e6);
-    fprintf(stderr, "  wrote at %2.2f Mbytes/sec (%2.2f Gbytes/sec)\n",
-            rate / M, rate / G);
+    secs = ((end-start) + (end_usec-start_usec)/1.0e6);
+    rate = block_size / secs;
+    fprintf(stderr,
+            "  wrote in %2.2f secs at %2.2f Mbytes/sec (%2.2f Gbytes/sec)\n",
+            secs, rate / M, rate / G);
+
+    if(gigabytes_count > 0 && !--gigabytes_count)
+        break;
+    
   }
 
 #ifdef USE_STDIO
