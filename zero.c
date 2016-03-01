@@ -113,13 +113,16 @@ int main(int argc, char *argv[])
     size_t written;
     struct timeval tv;
     time_t start;
+    suseconds_t start_usec;
     time_t end;
+    suseconds_t end_usec;
     size_t expected;
     
     fprintf(stderr, "writing %d bytes to %s\n", (int)block_size, filename);
 
     gettimeofday(&tv, NULL);
     start = tv.tv_sec;
+    start_usec = tv.tv_usec;
 
 #ifdef USE_STDIO
     expected = nitems;
@@ -131,13 +134,14 @@ int main(int argc, char *argv[])
 
     gettimeofday(&tv, NULL);
     end = tv.tv_sec;
+    end_usec = tv.tv_usec;
 
     if(written != expected) {
       fprintf(stderr, "WARNING write wrote %d items expected %d\n",
               (int)written, (int)expected);
       break;
     }
-    rate = block_size / (end-start);
+    rate = block_size / ((end-start) + (end_usec-start_usec)/1.0e6);
     fprintf(stderr, "  wrote at %2.2f Mbytes/sec (%2.2f Gbytes/sec)\n",
             rate / M, rate / G);
   }
