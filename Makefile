@@ -6,6 +6,6 @@ all: $(FILES)
 clean:
 	rm -f $(FILES) *~
 
-trunc: trunc.c
+trunc: trunc.c size.c
 
-zero: zero.c
+zero: zero.c size.c
