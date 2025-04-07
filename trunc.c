@@ -60,10 +60,16 @@ int main(int argc, char *argv[])
    * variable of type off_t.
    */
   if((off_t)-1 > 0)
-    /* off_t is unsigned */
+    /* This should not happen for POSIX compliant off_t, but if off_t were
+     * unsigned, this would calculate its maximum value.
+     */
     max_off_t = (long long)((off_t)-1);
   else
-    /* off_t is signed. want max positive value. In binary: 011....111 */
+    /* off_t is signed. Calculate max positive value (usually 2^(N-1) - 1).
+     * Assumes two's complement representation.
+     * (off_t)1 << (sizeof(off_t) * 8 - 1) gives the minimum negative value.
+     * ~ negates it, resulting in the maximum positive value.
+     */
     max_off_t = (long long)(~((off_t)1 << (sizeof(off_t) * 8 - 1)));
 
   if(argc != 3) {
