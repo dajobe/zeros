@@ -53,8 +53,8 @@
 #include "size.h"
 
 
-static const unsigned long long M = 1024*1024;
-static const unsigned long long G = 1024*1024*1024;
+static const unsigned long long M = 1<<10;
+static const unsigned long long G = 1<<20;
 
 
 int main(int argc, char *argv[]) 
@@ -121,6 +121,7 @@ int main(int argc, char *argv[])
             "  %s [OPTIONS] FILENAME\n"
             "OPTIONS\n"
             "  -b block_size : Size of each write block (default: 1G)\n"
+            "  -h            : Show this help message\n"
             "  -t total_size : Total size of the file to create (default: block_size)\n"
             "Block size and total size are of form <integer>[KMGTP] eg 10M, 20P\n",
             argv[0]);
