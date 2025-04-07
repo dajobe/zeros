@@ -60,11 +60,7 @@ int main(int argc, char *argv[]);
 int main(int argc, char *argv[]) 
 {
   char *filename;
-#ifdef USE_STDIO
-  FILE *handle;
-#else
   int fd;
-#endif
   size_t block_size = 1 * G; // Default block size: 1 GiB
   size_t total_size = 0; // Default: write one block_size
   size_t total_written = 0;
@@ -83,9 +79,11 @@ int main(int argc, char *argv[])
   while ((opt = getopt(argc, argv, "b:ht:")) != -1) {
     switch (opt) {
       case 'b':
-        block_size = (size_t)parse_size(optarg, max_size_t);
-        if (!block_size)
-          exit(1);
+        {
+          long long parsed_size = parse_size(optarg, max_size_t);
+          if (parsed_size <= 0) // Also disallow zero block size
+            exit(1);
+        }
         break;
 
       case 'h':
@@ -93,9 +91,11 @@ int main(int argc, char *argv[])
         break;
 
       case 't':
-        total_size = (size_t)parse_size(optarg, max_size_t);
-        if (!total_size)
-          exit(1);
+        {
+          long long parsed_size = parse_size(optarg, max_size_t);
+          if (parsed_size < 0) // Allow zero total size
+            exit(1);
+        }
         break;
 
       default: /* '?' */
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s: mmap()ed %" PRIuPTR " bytes at %p\n",
             argv[0], block_size, buffer);
 #else
-  buffer = (char*)calloc(nitems, size);
+  buffer = (char*)calloc(1, block_size);
   if(!buffer) {
     fprintf(stderr, "Failed to allocate %" PRIuPTR " bytes\n",
             block_size);
@@ -145,24 +145,15 @@ int main(int argc, char *argv[])
   }
 #endif
   
-#ifdef USE_STDIO
-  handle = fopen(filename, "wb");
-  if(!handle) {
-    fprintf(stderr, "Failed to open output file %s - %s\n", filename,
-            strerror(errno));
-    exit(1);
-  }
-#else
   fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644);
   if(fd < 0) {
     fprintf(stderr, "Failed to open output file %s - %s\n", filename,
             strerror(errno));
 #ifndef USE_MMAP
-    free(buffer);
+    if (buffer) free(buffer);
 #endif
     exit(1);
   }
-#endif
 
   while(1) {
     ssize_t written_now; // write returns ssize_t
@@ -193,16 +184,7 @@ int main(int argc, char *argv[])
     start = tv.tv_sec;
     start_usec = tv.tv_usec;
 
-#ifdef USE_STDIO
-    expected = nitems;
-    // THIS PATH IS NOT RECOMMENDED / TESTED WITH NEW LOGIC
-    // fwrite returns number of items successfully written.
-    // Need adaptation if USE_STDIO is truly desired.
-    fprintf(stderr, "USE_STDIO path needs review for size logic.\n");
-    written_now = fwrite(buffer, expected_write, 1, (FILE*)((void*)0)); // Deliberately broken
-#else
     written_now = write(fd, buffer, expected_write);
-#endif
 
     gettimeofday(&tv, NULL);
     end = tv.tv_sec;
@@ -212,7 +194,9 @@ int main(int argc, char *argv[])
       fprintf(stderr,
               "%s: ERROR writing to %s - %s\n",
               argv[0], filename, strerror(errno));
+      /* Error occurred, break loop for cleanup */
       break;
+      /* NOTE: Does not attempt to handle partial error/retry */
     } else if ((size_t)written_now != expected_write) {
       fprintf(stderr,
               "%s: WARNING: partial write - wrote %zd bytes, expected %zu\n",
@@ -234,16 +218,12 @@ int main(int argc, char *argv[])
     
   }
 
-#ifdef USE_STDIO
-  fclose(handle);
-#else
   close(fd);
-#endif
 
 #ifdef USE_MMAP
-  if(buffer)
+  if (buffer != MAP_FAILED)
      munmap(buffer, block_size);
 #endif
-  
+
   return 0;
 }

@@ -47,11 +47,7 @@ int main(int argc, char *argv[]);
 int main(int argc, char *argv[]) 
 {
   char *filename;
-#if USE_STDIO
-  FILE *handle;
-#else
   int fd;
-#endif
   off_t target_size;
   long long max_off_t;
 
@@ -76,26 +72,17 @@ int main(int argc, char *argv[])
     exit(1);
   }
   
-#if USE_STDIO
-  handle = fopen(filename, "wb");
-  if(!handle) {
-    fprintf(stderr, "%s: Failed to open output file %s - %s\n",
-            argv[0], filename, strerror(errno));
-    exit(1);
-  }
-#else
   fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644);
   if(fd < 0) {
     fprintf(stderr, "%s: Failed to open output file %s - %s\n",
             argv[0], filename, strerror(errno));
     exit(1);
   }
-#endif
 
 
-#if USE_STDIO
-  error cannot
-#else
+  /* ftruncate is the most efficient way to set file size, possibly
+   * creating a sparse file if extending.
+   */
   if(ftruncate(fd, target_size) == -1) {
     fprintf(stderr, "%s: Failed to truncate file %s to %lld bytes - %s\n",
             argv[0], filename, (long long)target_size, strerror(errno));
@@ -103,13 +90,8 @@ int main(int argc, char *argv[])
   }
   fprintf(stderr, "%s: Truncated %s to %lld bytes\n",
           argv[0], filename, (long long)target_size);
-#endif
 
-#if USE_STDIO
-  fclose(handle);
-#else
   close(fd);
-#endif
 
   return 0;
 }
