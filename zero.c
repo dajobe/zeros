@@ -61,8 +61,8 @@ int main(int argc, char *argv[])
 {
   char *filename;
   int fd;
-  size_t block_size = 1 * G; // Default block size: 1 GiB
-  size_t total_size = 0; // Default: write one block_size
+  size_t block_size = 1 * G; /* Default block size: 1 GiB */
+  size_t total_size = 0; /* Default: write one block_size */
   size_t total_written = 0;
   int opt;
 #ifdef USE_MMAP
@@ -81,7 +81,8 @@ int main(int argc, char *argv[])
       case 'b':
         {
           long long parsed_size = parse_size(optarg, max_size_t);
-          if (parsed_size <= 0) // Also disallow zero block size
+          /* Also disallow zero block size */
+          if (parsed_size <= 0) 
             exit(1);
           block_size = (size_t)parsed_size;
         }
@@ -94,7 +95,8 @@ int main(int argc, char *argv[])
       case 't':
         {
           long long parsed_size = parse_size(optarg, max_size_t);
-          if (parsed_size < 0) // Allow zero total size
+          /* Allow zero total size */
+          if (parsed_size < 0)
             exit(1);
           total_size = (size_t)parsed_size;
         }
@@ -123,7 +125,7 @@ int main(int argc, char *argv[])
 
   filename = argv[optind];
 
-  // If total size was not specified, default to writing one block
+  /* If total size was not specified, default to writing one block */
   if (!total_size)
     total_size = block_size;
 
@@ -152,7 +154,8 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Failed to open output file %s - %s\n", filename,
             strerror(errno));
 #ifndef USE_MMAP
-    if (buffer) free(buffer);
+    if(buffer)
+      free(buffer);
 #endif
     exit(1);
   }
