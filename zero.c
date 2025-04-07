@@ -83,6 +83,7 @@ int main(int argc, char *argv[])
           long long parsed_size = parse_size(optarg, max_size_t);
           if (parsed_size <= 0) // Also disallow zero block size
             exit(1);
+          block_size = (size_t)parsed_size;
         }
         break;
 
@@ -95,6 +96,7 @@ int main(int argc, char *argv[])
           long long parsed_size = parse_size(optarg, max_size_t);
           if (parsed_size < 0) // Allow zero total size
             exit(1);
+          total_size = (size_t)parsed_size;
         }
         break;
 
