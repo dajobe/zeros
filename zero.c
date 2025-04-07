@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
   int fd = -1;
   size_t block_size = 1 * G; /* Default block size: 1 GiB */
   size_t total_size = 0; /* Default: write one block_size */
+  int total_size_changed = 0;
   size_t total_written = 0;
   int opt;
 #ifdef USE_MMAP
@@ -103,6 +104,7 @@ int main(int argc, char *argv[])
             goto tidy;
           }
           total_size = (size_t)parsed_size;
+          total_size_changed = 1;
         }
         break;
 
@@ -132,7 +134,7 @@ int main(int argc, char *argv[])
   filename = argv[optind];
 
   /* If total size was not specified, default to writing one block */
-  if (!total_size)
+  if (!total_size_changed)
     total_size = block_size;
 
 #ifdef USE_MMAP
