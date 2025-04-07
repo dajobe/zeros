@@ -18,16 +18,16 @@ clean:
 	$(RM) -f $(FILES) *~
 
 size.o: size.c size.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c size.c -o size.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c size.c -o $@
 
 trunc.o: trunc.c size.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c trunc.c -o trunc.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c trunc.c -o $@
 
 zero.o: zero.c size.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c zero.c -o zero.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c zero.c -o $@
 
 trunc: trunc.o size.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) trunc.o size.o -o $@ $(LIBS)
+	$(CC) $(LDFLAGS) trunc.o size.o -o $@ $(LIBS)
 
 zero: zero.o size.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) zero.o size.o -o $@ $(LIBS)
+	$(CC) $(LDFLAGS) zero.o size.o -o $@ $(LIBS)
