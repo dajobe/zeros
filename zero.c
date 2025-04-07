@@ -144,9 +144,7 @@ int main(int argc, char *argv[])
             block_size, strerror(errno));
     rc = 1;
     goto tidy;
-  } else
-    fprintf(stderr, "%s: mmap()ed %" PRIuPTR " bytes at %p\n",
-            argv[0], block_size, buffer);
+  }
 #else
   buffer = (char*)calloc(1, block_size);
   if(!buffer) {
