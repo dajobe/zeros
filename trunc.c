@@ -39,8 +39,6 @@
 extern long long parse_size(const char *size_str, long long max_size);
 
 
-#define USE_STDIO 0
-
 int main(int argc, char *argv[]);
 
 
