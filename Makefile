@@ -13,7 +13,7 @@ CPPFLAGS= -DUSE_MMAP
 all: $(FILES)
 
 clean:
-	rm -f $(FILES) *~
+	$(RM) -f $(FILES) *~
 
 size.o: size.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c size.c -o size.o
