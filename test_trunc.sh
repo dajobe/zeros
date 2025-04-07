@@ -1,7 +1,9 @@
 #!/bin/sh
-
+#
+# shellcheck disable=SC3043  # Don't warn about local
+#
 # Functional tests for ./trunc
-
+#
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
@@ -27,6 +29,7 @@ check_size() {
 }
 
 # Cleanup function
+# shellcheck disable=SC2317  # Don't warn about cleanup being unreachable
 cleanup() {
     rm -f "$TEST_FILE"
 }
