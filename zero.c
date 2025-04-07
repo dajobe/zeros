@@ -42,13 +42,15 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <ctype.h>
-
 #ifdef USE_MMAP
 #include <sys/mman.h>
 #else
 #endif
+#include <sys/time.h>
+#include <sys/types.h> /* For size_t, ssize_t */
+#include <sys/stat.h>  /* For open() modes S_I... */
 
-extern long long parse_size(const char *size_str, long long max_size);
+#include "size.h"
 
 
 static const unsigned long long M = 1024*1024;
@@ -58,7 +60,7 @@ static const unsigned long long G = 1024*1024*1024;
 int main(int argc, char *argv[]) 
 {
   char *filename;
-  int fd;
+  int fd = -1;
   size_t block_size = 1 * G; /* Default block size: 1 GiB */
   size_t total_size = 0; /* Default: write one block_size */
   size_t total_written = 0;
@@ -73,13 +75,15 @@ int main(int argc, char *argv[])
   /* size_t is always unsigned so the maximum possible value can be
    * found from casting -1 */
   long long max_size_t = (long long)((size_t)-1);
+  int rc = 0;
 
   while ((opt = getopt(argc, argv, "b:ht:")) != -1) {
+    long long parsed_size;
     switch (opt) {
       case 'b':
         {
-          long long parsed_size = parse_size(optarg, max_size_t);
-          /* Also disallow zero block size */
+          parsed_size = parse_size(optarg, max_size_t);
+          /* Block size must be positive */
           if (parsed_size <= 0) 
             exit(1);
           block_size = (size_t)parsed_size;
@@ -92,10 +96,12 @@ int main(int argc, char *argv[])
 
       case 't':
         {
-          long long parsed_size = parse_size(optarg, max_size_t);
-          /* Allow zero total size */
-          if (parsed_size < 0)
-            exit(1);
+          parsed_size = parse_size(optarg, max_size_t);
+          /* Allow zero total size, but error on parse failure */
+          if (parsed_size < 0) {
+            rc = 1;
+            goto tidy;
+          }
           total_size = (size_t)parsed_size;
         }
         break;
@@ -118,7 +124,8 @@ int main(int argc, char *argv[])
             "  -t total_size : Total size of the file to create (default: block_size)\n"
             "Block size and total size are of form <integer>[KMGTP] eg 10M, 20P\n",
             argv[0]);
-    exit(usage > 1);
+    rc = (usage > 1);
+    goto tidy;
   }
 
   filename = argv[optind];
@@ -134,7 +141,8 @@ int main(int argc, char *argv[])
   if(buffer == MAP_FAILED) {
     fprintf(stderr, "Failed to mmap %" PRIuPTR " bytes - %s\n",
             block_size, strerror(errno));
-    exit(1);
+    rc = 1;
+    goto tidy;
   } else
     fprintf(stderr, "%s: mmap()ed %" PRIuPTR " bytes at %p\n",
             argv[0], block_size, buffer);
@@ -143,19 +151,18 @@ int main(int argc, char *argv[])
   if(!buffer) {
     fprintf(stderr, "Failed to allocate %" PRIuPTR " bytes\n",
             block_size);
-    exit(1);
+    rc = 1;
+    goto tidy;
   }
 #endif
   
-  fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+  fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); /* 0644 */
   if(fd < 0) {
     fprintf(stderr, "Failed to open output file %s - %s\n", filename,
             strerror(errno));
-#ifndef USE_MMAP
-    if(buffer)
-      free(buffer);
-#endif
-    exit(1);
+    rc = 1;
+    goto tidy;
   }
 
   while(1) {
@@ -198,6 +205,7 @@ int main(int argc, char *argv[])
               "%s: ERROR writing to %s - %s\n",
               argv[0], filename, strerror(errno));
       /* Error occurred, break loop for cleanup */
+      rc = 1;
       break;
       /* NOTE: Does not attempt to handle partial error/retry */
     } else if ((size_t)written_now != expected_write) {
@@ -221,15 +229,17 @@ int main(int argc, char *argv[])
     
   }
 
-  close(fd);
+  tidy:
+  if(fd >= 0)
+    close(fd);
 
 #ifdef USE_MMAP
   if (buffer != MAP_FAILED)
      munmap(buffer, block_size);
 #else
   if(buffer)
-    free(buffer)
+    free(buffer);
 #endif
 
-  return 0;
+  return rc;
 }

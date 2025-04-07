@@ -35,19 +35,29 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <sys/types.h> /* For off_t */
+#include <sys/stat.h>  /* For open() modes S_I... */
+
+#include "size.h"
 
 extern long long parse_size(const char *size_str, long long max_size);
+
+static void usage(const char *progname) {
+  fprintf(stderr, "USAGE: %s FILENAME SIZE[K|M|G|T|P]\n", progname);
+  fprintf(stderr, "  SIZE uses power-of-2 suffixes (K=1024, M=1024*1024, ...)\n");
+}
 
 
 int main(int argc, char *argv[]) 
 {
   char *filename;
-  int fd;
+  int fd = -1;
   off_t target_size;
   long long max_off_t;
+  int rc = 0;
 
   /* Determine the maximum possible value that can be stored in a
-   * variable of type off_t
+   * variable of type off_t.
    */
   if((off_t)-1 > 0)
     /* off_t is unsigned */
@@ -57,21 +67,25 @@ int main(int argc, char *argv[])
     max_off_t = (long long)(~((off_t)1 << (sizeof(off_t) * 8 - 1)));
 
   if(argc != 3) {
-    fprintf(stderr, "USAGE: %s FILENAME SIZE[K|M|G|T|P]\n", argv[0]);
-    exit(1);
+    usage(argv[0]);
+    rc = 0;
+    goto tidy;
   }
 
   filename = argv[1];
   target_size = (off_t)parse_size(argv[2], max_off_t);
   if (target_size < 0) {
-    exit(1);
+    rc = 1;
+    goto tidy;
   }
   
-  fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+  fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); /* 0644 */
   if(fd < 0) {
     fprintf(stderr, "%s: Failed to open output file %s - %s\n",
             argv[0], filename, strerror(errno));
-    exit(1);
+    rc = 1;
+    goto tidy;
   }
 
 
@@ -82,11 +96,14 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s: Failed to truncate file %s to %lld bytes - %s\n",
             argv[0], filename, (long long)target_size, strerror(errno));
     close(fd);
+    rc = 1;
   }
   fprintf(stderr, "%s: Truncated %s to %lld bytes\n",
           argv[0], filename, (long long)target_size);
 
-  close(fd);
+  tidy:
+  if(fd >= 0)
+    close(fd);
 
-  return 0;
+  return rc;
 }
