@@ -8,6 +8,7 @@
  *
  * @param size_str String containing the size to parse.
  * @param max_size The maximum allowed value for the parsed size.
+ *                 If max_size is 0 or negative, it defaults to LLONG_MAX.
  * @return Size in bytes as long long, or <0 on error.
  */
 long long parse_size(const char *size_str, long long max_size);
