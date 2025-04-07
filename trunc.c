@@ -39,9 +39,6 @@
 extern long long parse_size(const char *size_str, long long max_size);
 
 
-int main(int argc, char *argv[]);
-
-
 int main(int argc, char *argv[]) 
 {
   char *filename;

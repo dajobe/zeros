@@ -54,8 +54,6 @@ extern long long parse_size(const char *size_str, long long max_size);
 static const unsigned long long M = 1024*1024;
 static const unsigned long long G = 1024*1024*1024;
 
-int main(int argc, char *argv[]);
-
 
 int main(int argc, char *argv[]) 
 {
