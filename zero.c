@@ -228,6 +228,9 @@ int main(int argc, char *argv[])
 #ifdef USE_MMAP
   if (buffer != MAP_FAILED)
      munmap(buffer, block_size);
+#else
+  if(buffer)
+    free(buffer)
 #endif
 
   return 0;
