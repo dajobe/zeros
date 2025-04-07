@@ -10,13 +10,21 @@ CPPFLAGS= -DUSE_MMAP
 # LIBS=
 
 
+.PHONY: all clean
+
 all: $(FILES)
 
 clean:
 	$(RM) -f $(FILES) *~
 
-size.o: size.c
+size.o: size.c size.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c size.c -o size.o
+
+trunc.o: trunc.c size.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c trunc.c -o trunc.o
+
+zero.o: zero.c size.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c zero.c -o zero.o
 
 trunc: trunc.o size.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) trunc.o size.o -o $@ $(LIBS)

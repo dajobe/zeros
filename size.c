@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <ctype.h>
+#include <limits.h> /* For LLONG_MAX */
+#include "size.h"
 
 
 /* Parse size string (e.g., "10G", "512M", "2048K", "1024") with case
@@ -9,6 +11,7 @@
  *
  * @param size_str String containing the size to parse.
  * @param max_size The maximum allowed value for the parsed size.
+ *                 If max_size is 0, it defaults to LLONG_MAX.
  * Returns size in bytes as long long, or <0 on error.
  */
 long long
@@ -16,6 +19,10 @@ parse_size(const char *size_str, long long max_size)
 {
   char *endptr;
   long long size;
+
+  /* Default to maximum possible long long if max_size is unspecified */
+  if (max_size <= 0)
+    max_size = LLONG_MAX;
 
   errno = 0;
 
