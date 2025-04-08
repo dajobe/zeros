@@ -10,13 +10,26 @@ set -e
 PROG=./zero
 TEST_FILE="test_zero.out"
 
+# Helper function to get file size
+size() {
+    local filename="$1"
+    case $(uname) in
+        (Darwin | *BSD*)
+            stat -Lf %z -- "$filename"
+            ;;
+        (*)
+            stat -c %s -- "$filename"
+            ;;
+    esac
+}
+
 # Helper function to check file size
 check_size() {
     local filename="$1"
     local expected_size="$2"
-    local actual_size
+    local actual_size=$(size "$filename" 2>/dev/null)
 
-    if ! actual_size=$(stat -f %z "$filename" 2>/dev/null); then
+    if [ -z $actual_size ]; then
         echo "FAIL: $filename does not exist (expected size $expected_size)."
         exit 1
     fi
