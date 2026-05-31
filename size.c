@@ -1,3 +1,12 @@
+/*
+ * size.c - parse size strings with K/M/G/T/P suffixes
+ *
+ * Copyright (c) 2009-2026 David Beckett
+ * SPDX-License-Identifier: MIT
+ *
+ * See LICENSE for the full license text.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>

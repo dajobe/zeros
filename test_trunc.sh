@@ -50,6 +50,10 @@ trap cleanup EXIT
 
 echo "--- Testing trunc ---"
 
+echo "Test 0: -h and -V"
+$PROG -h >/dev/null 2>&1
+$PROG -V | grep -q 'trunc 2\.0\.0'
+
 # Test 1: Create a new file with specific size (bytes)
 echo "Test 1: Create 1024 byte file"
 $PROG "$TEST_FILE" 1024
@@ -65,10 +69,10 @@ echo "Test 3: Truncate to 1M"
 $PROG "$TEST_FILE" 1M
 check_size "$TEST_FILE" $((1 * 1024 * 1024))
 
-# Test 4: Extend existing file (G suffix) - may be sparse
-echo "Test 4: Extend to 1G"
-$PROG "$TEST_FILE" 1G
-check_size "$TEST_FILE" $((1 * 1024 * 1024 * 1024))
+# Test 4: Extend existing file (10M suffix)
+echo "Test 4: Extend to 10M"
+$PROG "$TEST_FILE" 10M
+check_size "$TEST_FILE" $((10 * 1024 * 1024))
 
 # Test 5: Truncate to zero size
 echo "Test 5: Truncate to 0"

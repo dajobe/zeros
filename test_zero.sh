@@ -65,7 +65,18 @@ trap cleanup EXIT
 
 echo "--- Testing zero ---"
 
-# Default size is 1G block size, 1G total size. Too slow for CI.
+# Test 0: help, version, usage
+echo "Test 0: -h and -V"
+$PROG -h >/dev/null 2>&1
+$PROG -V | grep -q 'zero 2\.0\.0'
+if $PROG 2>/tmp/test_zero_usage.err; then echo "FAIL: expected usage error"; exit 1; else echo "PASS: usage error"; fi
+if grep -q Examples: /tmp/test_zero_usage.err; then
+    echo "FAIL: bare zero should print brief usage, not full help"
+    exit 1
+fi
+rm -f /tmp/test_zero_usage.err
+
+# Default size is 1G chunk size, 1G total size. Too slow for CI.
 # Let's use smaller defaults for testing.
 
 # Test 1: Small file, specific total size, default block size

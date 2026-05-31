@@ -1,3 +1,12 @@
+/*
+ * size.h - size parsing API
+ *
+ * Copyright (c) 2009-2026 David Beckett
+ * SPDX-License-Identifier: MIT
+ *
+ * See LICENSE for the full license text.
+ */
+
 #ifndef SIZE_H
 #define SIZE_H
 

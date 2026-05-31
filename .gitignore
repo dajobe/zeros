@@ -1,5 +1,6 @@
 *.o
 *~
 test_size
+test_format
 trunc
 zero

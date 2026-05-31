@@ -1,115 +1,117 @@
 /*
- * trunc.c - make a lot of zeros
+ * trunc.c - legacy wrapper to create a zero-filled file
  *
  * USAGE:
- *   trunc FILENAME SIZE[K|M|G]
- * 
- * Copyright (c) 2009-2024 David Beckett
- * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
-*/
+ *   trunc FILENAME SIZE[K|M|G|T|P]
+ *
+ * Copyright (c) 2009-2026 David Beckett
+ * SPDX-License-Identifier: MIT
+ *
+ * See LICENSE for the full license text.
+ */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <ctype.h>
-#include <sys/types.h> /* For off_t */
-#include <sys/stat.h>  /* For open() modes S_I... */
 
+#include "cli.h"
+#include "progress.h"
 #include "size.h"
+#include "zerofill.h"
 
-extern long long parse_size(const char *size_str, long long max_size);
-
-static void usage(const char *progname) {
-  fprintf(stderr, "USAGE: %s FILENAME SIZE[K|M|G|T|P]\n", progname);
-  fprintf(stderr, "  SIZE uses power-of-2 suffixes (K=1024, M=1024*1024, ...)\n");
+static double elapsed_secs(const struct timeval *start,
+                           const struct timeval *end) {
+  return (double)(end->tv_sec - start->tv_sec) +
+         (double)(end->tv_usec - start->tv_usec) / 1.0e6;
 }
 
-
-int main(int argc, char *argv[]) 
-{
+int main(int argc, char *argv[]) {
   char *filename;
   int fd = -1;
   off_t target_size;
   long long max_off_t;
+  int opt;
   int rc = 0;
+  progress_state *progress = NULL;
+  zerofill_info zinfo;
+  struct timeval t_start;
+  struct timeval t_end;
+  double elapsed;
 
-  /* Determine the maximum possible value that can be stored in a
-   * variable of type off_t.
-   */
-  if((off_t)-1 > 0)
-    /* This should not happen for POSIX compliant off_t, but if off_t were
-     * unsigned, this would calculate its maximum value.
-     */
+  if ((off_t)-1 > 0)
     max_off_t = (long long)((off_t)-1);
   else
-    /* off_t is signed. Calculate max positive value (usually 2^(N-1) - 1).
-     * Assumes two's complement representation.
-     * (off_t)1 << (sizeof(off_t) * 8 - 1) gives the minimum negative value.
-     * ~ negates it, resulting in the maximum positive value.
-     */
-    max_off_t = (long long)(~((off_t)1 << (sizeof(off_t) * 8 - 1)));
+    max_off_t =
+        (long long)(~((off_t)1 << (sizeof(off_t) * 8 - 1)));
 
-  if(argc != 3) {
-    usage(argv[0]);
-    rc = 0;
-    goto tidy;
+  while ((opt = getopt(argc, argv, "hV")) != -1) {
+    switch (opt) {
+    case 'h':
+      trunc_print_help(argv[0]);
+      return 0;
+    case 'V':
+      print_version(argv[0]);
+      return 0;
+    default:
+      trunc_print_help(argv[0]);
+      return 2;
+    }
   }
 
-  filename = argv[1];
-  target_size = (off_t)parse_size(argv[2], max_off_t);
-  if (target_size < 0) {
-    rc = 1;
-    goto tidy;
+  if (optind + 2 != argc) {
+    trunc_print_help(argv[0]);
+    return 2;
   }
-  
+
+  filename = argv[optind];
+  target_size = (off_t)parse_size(argv[optind + 1], max_off_t);
+  if (target_size < 0)
+    return 1;
+
+  progress = progress_create(argv[0], filename, 1ULL << 30, 1);
+  if (!progress) {
+    fprintf(stderr, "%s: error: out of memory\n", argv[0]);
+    return 1;
+  }
+
   fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC,
-            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); /* 0644 */
-  if(fd < 0) {
-    fprintf(stderr, "%s: Failed to open output file %s - %s\n",
-            argv[0], filename, strerror(errno));
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if (fd < 0) {
+    fprintf(stderr, "%s: error: cannot open %s - %s\n", argv[0], filename,
+            strerror(errno));
     rc = 1;
     goto tidy;
   }
 
+  gettimeofday(&t_start, NULL);
 
-  /* ftruncate is the most efficient way to set file size, possibly
-   * creating a sparse file if extending.
-   */
-  if(ftruncate(fd, target_size) == -1) {
-    fprintf(stderr, "%s: Failed to truncate file %s to %lld bytes - %s\n",
-            argv[0], filename, (long long)target_size, strerror(errno));
-    close(fd);
+  if (zerofill(fd, (uint64_t)target_size, 1ULL << 30, NULL, NULL, NULL, NULL,
+               &zinfo) != 0) {
+    fprintf(stderr, "%s: error: failed to fill %s - %s\n", argv[0], filename,
+            strerror(errno));
     rc = 1;
+    goto tidy;
   }
-  fprintf(stderr, "%s: Truncated %s to %lld bytes\n",
-          argv[0], filename, (long long)target_size);
 
-  tidy:
-  if(fd >= 0)
-    close(fd);
+  gettimeofday(&t_end, NULL);
+  elapsed = elapsed_secs(&t_start, &t_end);
+  progress_finish(progress, (uint64_t)target_size, elapsed, zinfo.method);
 
+tidy:
+  if (fd >= 0) {
+    if (close(fd) != 0 && rc == 0) {
+      fprintf(stderr, "%s: error: cannot close %s - %s\n", argv[0], filename,
+              strerror(errno));
+      rc = 1;
+    }
+    fd = -1;
+  }
+  progress_destroy(progress);
   return rc;
 }

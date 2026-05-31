@@ -1,3 +1,12 @@
+/*
+ * test_size.c - unit tests for size.c
+ *
+ * Copyright (c) 2009-2026 David Beckett
+ * SPDX-License-Identifier: MIT
+ *
+ * See LICENSE for the full license text.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
